@@ -1,5 +1,9 @@
 package com.example.ansuman.potatoplayer;
 
+import android.Manifest;
+import android.content.pm.PackageManager;
+import android.os.Build;
+import android.provider.MediaStore;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import java.util.ArrayList;
@@ -19,10 +23,54 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE)
+                    != PackageManager.PERMISSION_GRANTED) {
+
+                requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, 1);
+                return;
+            }
+        }
 
         songView=(ListView)findViewById(R.id.song_list);
         songList=new ArrayList<Song>();
+
+        SongAdapter songAdt = new SongAdapter(this, songList);
+        songView.setAdapter(songAdt);
     }
 
+    public void getSongList()
+    {
+        ContentResolver musicResolver=getContentResolver();
+        Uri musicUri= MediaStore.Audio.Media.EXTERNAL_CONTENT_URI;
+        Cursor musicCursor=musicResolver.query(musicUri,null,null,null,null);
+        if(musicCursor!=null && musicCursor.moveToFirst()){
+            //get columns
+            int titleColumn = musicCursor.getColumnIndex
+                    (android.provider.MediaStore.Audio.Media.TITLE);
+            int idColumn = musicCursor.getColumnIndex
+                    (android.provider.MediaStore.Audio.Media._ID);
+            int artistColumn = musicCursor.getColumnIndex
+                    (android.provider.MediaStore.Audio.Media.ARTIST);
+            //add songs to list
+            do
+            {
+                long thisId = musicCursor.getLong(idColumn);
+                String thisTitle = musicCursor.getString(titleColumn);
+                String thisArtist = musicCursor.getString(artistColumn);
+                songList.add(new Song(thisId, thisTitle, thisArtist));
+            }
+            while (musicCursor.moveToNext());
+
+            getSongList();
+            Collections.sort(songList, new Comparator<Song>()
+            {
+                public int compare(Song a, Song b)
+                {
+                    return a.getTitle().compareTo(b.getTitle());
+                }
+            });
+        }
+    }
 
 }
